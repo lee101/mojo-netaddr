@@ -648,6 +648,16 @@ class IPNetwork(BaseIP, IPListMixin):
         return IPNetwork((converted.value, prefix), 6)
 
     def contains_many(self, addresses: Iterable) -> np.ndarray:
+        if self.version == 4:
+            def values():
+                for item in addresses:
+                    ip = item if isinstance(item, IPAddress) else IPAddress(item, 4)
+                    if ip.version != 4:
+                        raise TypeError("address version does not match network")
+                    yield ip.value
+
+            packed = np.fromiter(values(), dtype=np.uint64)
+            return _lib.contains_many_v4_packed(self.first, self.prefixlen, packed)
         values = []
         for item in addresses:
             ip = item if isinstance(item, IPAddress) else IPAddress(item, self.version)

@@ -1,10 +1,10 @@
 """128-bit IP interval kernels exposed through a small C ABI."""
 
-from std.sys.info import simd_width_of
+from std.sys.info import simd_width_of as simdwidthof
 
 comptime UPtr = UnsafePointer[UInt64, AnyOrigin[mut=True]]
 comptime BPtr = UnsafePointer[UInt8, AnyOrigin[mut=True]]
-comptime W = simd_width_of[DType.float64]()
+comptime W = simdwidthof[DType.float64]()
 comptime PARALLEL_CHUNK_SIZE = 65536
 
 
@@ -360,6 +360,7 @@ def mna_contains_many_v4(
     var dst = BPtr(unsafe_from_address=dst_addr)
     var host_bits = 32 - prefix
     var last_hi, last = block_last(0, net, host_bits)
+    var mask = UInt64(0xFFFFFFFF) ^ (last - net)
 
     @parameter
     def process_chunk(chunk: Int):
@@ -370,10 +371,10 @@ def mna_contains_many_v4(
             var value = values.load[width=W](i)
             dst.store(
                 i,
-                (value.ge(net) & value.le(last)).cast[DType.uint8](),
+                ((value & mask).eq(net)).cast[DType.uint8](),
             )
         for i in range(simd_end, chunk_end):
-            dst[i] = UInt8(values[i] >= net and values[i] <= last)
+            dst[i] = UInt8((values[i] & mask) == net)
 
     var chunks = (n + PARALLEL_CHUNK_SIZE - 1) // PARALLEL_CHUNK_SIZE
     for chunk in range(chunks):

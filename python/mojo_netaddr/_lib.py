@@ -167,21 +167,12 @@ def contains_many(
         raise ValueError("invalid network passed to bulk containment")
     if any(not isinstance(value, int) or not 0 <= value <= maximum for value in values):
         raise ValueError("bulk containment value is outside the address width")
-    if not values:
+    if len(values) == 0:
         return np.empty(0, dtype=np.bool_)
     if width == 32:
-        values_lo = np.asarray(values, dtype=np.uint64)
-        result = np.empty(len(values), dtype=np.bool_)
-        status = lib().mna_contains_many_v4(
-            first,
-            prefix,
-            addr(values_lo),
-            len(values),
-            addr(result),
+        return contains_many_v4_packed(
+            first, prefix, np.asarray(values, dtype=np.uint64)
         )
-        if status != 0:
-            raise RuntimeError(f"Mojo IPv4 containment kernel failed with status {status}")
-        return result
     else:
         values_hi = np.fromiter((v >> 64 for v in values), dtype=np.uint64)
         values_lo = np.fromiter(
@@ -201,4 +192,26 @@ def contains_many(
     )
     if status != 0:
         raise RuntimeError(f"Mojo IPv6 containment kernel failed with status {status}")
+    return result
+
+
+def contains_many_v4_packed(
+    first: int, prefix: int, values: np.ndarray
+) -> np.ndarray:
+    if not 0 <= first <= (1 << 32) - 1 or not 0 <= prefix <= 32:
+        raise ValueError("invalid network passed to bulk containment")
+    if values.dtype != np.uint64 or values.ndim != 1:
+        raise TypeError("packed IPv4 values must be a one-dimensional uint64 array")
+    if len(values) == 0:
+        return np.empty(0, dtype=np.bool_)
+    result = np.empty(len(values), dtype=np.bool_)
+    status = lib().mna_contains_many_v4(
+        first,
+        prefix,
+        addr(values),
+        len(values),
+        addr(result),
+    )
+    if status != 0:
+        raise RuntimeError(f"Mojo IPv4 containment kernel failed with status {status}")
     return result

@@ -84,20 +84,24 @@ best of three warm runs.
 
 | case | mojo-netaddr | netaddr | result |
 | --- | ---: | ---: | ---: |
-| IPv4 range to CIDRs (10k calls) | 738.0 ms | 1290.9 ms | 1.75x faster |
-| IPv6 range to CIDRs (2k calls) | 600.0 ms | 897.0 ms | 1.49x faster |
-| Merge 300k adjacent IPv4 /32s | 318.1 ms | 440.9 ms | 1.39x faster |
-| Membership of 500k IPv4 addresses | 164.7 ms | 166.5 ms | 1.01x faster |
+| IPv4 range to CIDRs (10k calls) | 595.8 ms | 1057.4 ms | 1.77x faster |
+| IPv6 range to CIDRs (2k calls) | 412.1 ms | 903.1 ms | 2.19x faster |
+| Merge 300k adjacent IPv4 /32s | 241.7 ms | 323.6 ms | 1.34x faster |
+| Membership of 500k IPv4 addresses | 83.3 ms | 169.9 ms | 2.04x faster |
 
 Range decomposition uses one FFI crossing and one caller-owned NumPy allocation
 per call. Internal result construction skips redundant validation of values
 already produced by the compiled kernel. The IPv4 merge path consumes packed
 interval pairs directly, avoiding high-word arrays and column copies. Bulk
-membership uses native-width SIMD with a scalar remainder, writes directly
-into its boolean NumPy result, and switches to thresholded CPU parallelism for
-large inputs with a serial fallback.
+membership packs IPv4 values directly into one caller-owned NumPy buffer,
+keeps that buffer zero-copy across FFI, and uses a masked native-width SIMD
+comparison with a scalar remainder. It writes directly into its boolean NumPy
+result.
 
-No GPU path is provided.
+No GPU path is provided. Membership is a streaming load/compare/store kernel
+with far less than two operations per byte moved, and its end-to-end cost is
+dominated by Python object parsing and packing. CPU thread-launch and GPU
+transfer overhead therefore do not pay for this workload.
 
 ## How it works
 

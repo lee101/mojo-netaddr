@@ -129,7 +129,18 @@ def test_bulk_containment_simd_tail(network, inside, outside):
     assert np.array_equal(ours.contains_many(values), expected)
 
 
-def test_bulk_containment_parallel_threshold():
+@pytest.mark.parametrize("prefix", [0, 1, 8, 17, 31, 32])
+def test_bulk_containment_ipv4_mask_boundaries_and_generator(prefix):
+    network = mojo.IPNetwork((0xA5C37E19, prefix), 4).cidr
+    values = [
+        mojo.IPAddress((index * 2_654_435_761) & 0xFFFFFFFF, 4)
+        for index in range(2 * 8 + 3)
+    ]
+    expected = np.array([value in network for value in values])
+    assert np.array_equal(network.contains_many(value for value in values), expected)
+
+
+def test_bulk_containment_large_chunk_boundaries():
     count = 524_291
     network = mojo.IPNetwork("10.0.0.0/9")
     values = [
