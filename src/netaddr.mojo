@@ -1,13 +1,10 @@
 """128-bit IP interval kernels exposed through a small C ABI."""
 
-from std.algorithm import parallelize
-from std.gpu.host import DeviceContext
 from std.sys.info import simd_width_of
 
 comptime UPtr = UnsafePointer[UInt64, AnyOrigin[mut=True]]
 comptime BPtr = UnsafePointer[UInt8, AnyOrigin[mut=True]]
 comptime W = simd_width_of[DType.float64]()
-comptime PARALLEL_THRESHOLD = 524288
 comptime PARALLEL_CHUNK_SIZE = 65536
 
 
@@ -338,16 +335,8 @@ def mna_contains_many(
                 dst[i] = 0
 
     var chunks = (n + PARALLEL_CHUNK_SIZE - 1) // PARALLEL_CHUNK_SIZE
-    if n >= PARALLEL_THRESHOLD:
-        try:
-            with DeviceContext(api="cpu") as ctx:
-                parallelize[process_chunk](chunks, ctx)
-        except:
-            for chunk in range(chunks):
-                process_chunk(chunk)
-    else:
-        for chunk in range(chunks):
-            process_chunk(chunk)
+    for chunk in range(chunks):
+        process_chunk(chunk)
     return 0
 
 
@@ -387,14 +376,6 @@ def mna_contains_many_v4(
             dst[i] = UInt8(values[i] >= net and values[i] <= last)
 
     var chunks = (n + PARALLEL_CHUNK_SIZE - 1) // PARALLEL_CHUNK_SIZE
-    if n >= PARALLEL_THRESHOLD:
-        try:
-            with DeviceContext(api="cpu") as ctx:
-                parallelize[process_chunk](chunks, ctx)
-        except:
-            for chunk in range(chunks):
-                process_chunk(chunk)
-    else:
-        for chunk in range(chunks):
-            process_chunk(chunk)
+    for chunk in range(chunks):
+        process_chunk(chunk)
     return 0
