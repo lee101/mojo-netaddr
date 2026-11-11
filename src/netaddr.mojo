@@ -317,8 +317,8 @@ def mna_contains_many(
         var chunk_end = min(chunk_start + PARALLEL_CHUNK_SIZE, n)
         var simd_end = chunk_end - ((chunk_end - chunk_start) % W)
         for i in range(chunk_start, simd_end, W):
-            var value_hi = values_hi.load[width=W](i)
-            var value_lo = values_lo.load[width=W](i)
+            var value_hi = values_hi.unsafe_load[width=W](i)
+            var value_lo = values_lo.unsafe_load[width=W](i)
             var above_start = value_hi.gt(net_hi) | (
                 value_hi.eq(net_hi) & value_lo.ge(net_lo)
             )
@@ -368,7 +368,7 @@ def mna_contains_many_v4(
         var chunk_end = min(chunk_start + PARALLEL_CHUNK_SIZE, n)
         var simd_end = chunk_end - ((chunk_end - chunk_start) % W)
         for i in range(chunk_start, simd_end, W):
-            var value = values.load[width=W](i)
+            var value = values.unsafe_load[width=W](i)
             dst.store(
                 i,
                 ((value & mask).eq(net)).cast[DType.uint8](),
